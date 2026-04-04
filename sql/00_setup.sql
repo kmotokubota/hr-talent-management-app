@@ -29,6 +29,32 @@ USE SCHEMA HR;
 CREATE STAGE IF NOT EXISTS HR_TALENT_DB.HR.HR_STAGE
   COMMENT = 'Stage for Streamlit app files and file uploads';
 
+-- ── Container Runtime (SPCS) ────────────────────────────────────────────────
+
+-- Compute pool for Streamlit container runtime
+CREATE COMPUTE POOL IF NOT EXISTS HR_COMPUTE_POOL
+  MIN_NODES = 1
+  MAX_NODES = 1
+  INSTANCE_FAMILY = CPU_X64_XS
+  AUTO_SUSPEND_SECS = 3600
+  AUTO_RESUME = TRUE
+  COMMENT = 'Compute pool for HR Talent Management Streamlit app';
+
+-- Network rule: allow egress to PyPI for package installation
+CREATE NETWORK RULE IF NOT EXISTS HR_TALENT_DB.HR.PYPI_NETWORK_RULE
+  MODE = EGRESS
+  TYPE = HOST_PORT
+  VALUE_LIST = ('pypi.org', 'pypi.python.org', 'pythonhosted.org', 'files.pythonhosted.org')
+  COMMENT = 'Allow PyPI access for Streamlit container runtime';
+
+-- External access integration for PyPI
+CREATE EXTERNAL ACCESS INTEGRATION IF NOT EXISTS HR_PYPI_ACCESS_INTEGRATION
+  ALLOWED_NETWORK_RULES = (HR_TALENT_DB.HR.PYPI_NETWORK_RULE)
+  ENABLED = TRUE
+  COMMENT = 'PyPI access for HR Talent Management Streamlit container runtime';
+
+-- ── Roles ───────────────────────────────────────────────────────────────────
+
 -- Roles
 CREATE ROLE IF NOT EXISTS HR_ADMIN_ROLE;
 CREATE ROLE IF NOT EXISTS HR_USER_ROLE;
