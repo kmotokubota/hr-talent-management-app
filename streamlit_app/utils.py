@@ -12,10 +12,9 @@ WH = "HR_WH"
 
 
 def get_session():
-    """Return active Snowpark session (SiS context or local fallback)."""
+    """Return Snowpark session (container runtime via st.connection, local fallback)."""
     try:
-        from snowflake.snowpark.context import get_active_session
-        return get_active_session()
+        return st.connection("snowflake").session()
     except Exception:
         from snowflake.snowpark import Session
         conn = st.secrets.get("snowflake", {})
