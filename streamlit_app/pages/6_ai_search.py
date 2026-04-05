@@ -25,9 +25,10 @@ query_text = st.text_area(
 )
 
 model_options = {
-    "claude-sonnet-4-6": "Claude Sonnet 4.6 (高精度)",
-    "llama3.1-70b":      "Llama 3.1 70B (高速)",
-    "mistral-large2":    "Mistral Large 2 (バランス)",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6 (最新・高精度)",
+    "claude-4-sonnet":   "Claude 4 Sonnet (高精度)",
+    "openai-gpt-5.2":    "GPT-5.2 (最新・汎用)",
+    "openai-gpt-4.1":    "GPT-4.1 (高速・汎用)",
 }
 col1, col2, col3 = st.columns([3, 2, 1])
 with col1:
@@ -146,7 +147,12 @@ if search_btn:
 
     # Sort by AI score descending
     scored.sort(key=lambda x: x.get("AI_SCORE", 0), reverse=True)
+    # Persist results so profile buttons survive reruns
+    st.session_state["ai_search_scored"] = scored
 
+# ── Display results (from current search or previous session state) ───────────
+scored = st.session_state.get("ai_search_scored")
+if scored:
     st.markdown(
         f'<div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:16px">'
         f'AIマッチング結果 TOP {len(scored)}</div>',
@@ -207,10 +213,10 @@ if search_btn:
                     eng = float(cand.get("ENGAGEMENT_SCORE") or 50)
                     st.metric("エンゲージメント", f"{eng:.0f} / 100")
 
-                if st.button(
-                    "プロフィールを見る",
-                    key=f"profile_link_{emp_id}_{rank}",
-                    type="secondary",
-                ):
-                    st.session_state["selected_employee_id"] = emp_id
-                    st.switch_page("pages/3_profile.py")
+            if st.button(
+                "📋 プロフィールを見る",
+                key=f"profile_link_{emp_id}_{rank}",
+                type="secondary",
+            ):
+                st.session_state["selected_employee_id"] = emp_id
+                st.switch_page("pages/3_profile.py")
