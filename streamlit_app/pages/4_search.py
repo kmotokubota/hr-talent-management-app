@@ -131,18 +131,18 @@ def build_query(
     return f"""
         SELECT
             e.EMPLOYEE_ID   AS ID,
-            e.EMPLOYEE_NAME AS 氏名,
-            d.DEPARTMENT_NAME AS 部門,
-            p.POSITION_NAME   AS 職位,
-            e.JOB_GRADE       AS グレード,
-            e.GENDER          AS 性別,
-            e.AGE             AS 年齢,
-            e.TENURE_YEARS    AS 勤続年数,
-            e.LOCATION        AS 勤務地,
-            e.EMPLOYEE_TYPE   AS 雇用形態,
-            e.PERFORMANCE_SCORE AS 評価,
+            e.EMPLOYEE_NAME AS "氏名",
+            d.DEPARTMENT_NAME AS "部門",
+            p.POSITION_NAME   AS "職位",
+            e.JOB_GRADE       AS "グレード",
+            e.GENDER          AS "性別",
+            e.AGE             AS "年齢",
+            e.TENURE_YEARS    AS "勤続年数",
+            e.LOCATION        AS "勤務地",
+            e.EMPLOYEE_TYPE   AS "雇用形態",
+            e.PERFORMANCE_SCORE AS "評価",
             e.ENGAGEMENT_SCORE  AS ENG,
-            v.SKILLS_TEXT       AS スキル
+            v.SKILLS_TEXT       AS "スキル"
         FROM {DB}.{SCHEMA}.EMPLOYEES e
         LEFT JOIN {DB}.{SCHEMA}.DEPARTMENTS d ON e.DEPARTMENT_ID = d.DEPARTMENT_ID
         LEFT JOIN {DB}.{SCHEMA}.POSITIONS   p ON e.POSITION_ID   = p.POSITION_ID
@@ -194,5 +194,15 @@ if search_btn or st.session_state.get("search_results") is not None:
                 st.info("ページ「人材リスト」に移動して保存してください。")
 
         st.dataframe(results, use_container_width=True, hide_index=True, height=500)
+
+        # Per-employee profile link buttons
+        st.markdown('<div class="section-header">プロフィールを見る</div>', unsafe_allow_html=True)
+        btn_cols = st.columns(5)
+        for i, (_, row) in enumerate(results.head(20).iterrows()):
+            with btn_cols[i % 5]:
+                label = f'{row["氏名"]} ({row["ID"]})'
+                if st.button(label, key=f"go_profile_{row['ID']}"):
+                    st.session_state["selected_employee_id"] = row["ID"]
+                    st.switch_page("pages/3_profile.py")
 else:
     st.info("左のフィルタを設定して「検索する」ボタンを押してください。")

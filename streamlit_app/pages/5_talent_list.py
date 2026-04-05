@@ -102,9 +102,9 @@ with tab1:
                 # Members table
                 members = run_query(f"""
                     SELECT
-                        e.EMPLOYEE_ID AS ID, e.EMPLOYEE_NAME AS 氏名,
-                        d.DEPARTMENT_NAME AS 部門, p.POSITION_NAME AS 職位,
-                        e.JOB_GRADE AS グレード, e.PERFORMANCE_SCORE AS 評価,
+                        e.EMPLOYEE_ID AS ID, e.EMPLOYEE_NAME AS "氏名",
+                        d.DEPARTMENT_NAME AS "部門", p.POSITION_NAME AS "職位",
+                        e.JOB_GRADE AS "グレード", e.PERFORMANCE_SCORE AS "評価",
                         e.ENGAGEMENT_SCORE AS ENG
                     FROM {DB}.{SCHEMA}.TALENT_LIST_MEMBERS tlm
                     JOIN {DB}.{SCHEMA}.EMPLOYEES e USING (EMPLOYEE_ID)

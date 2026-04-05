@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import json
 import re
-from utils import run_query, get_session, DB, SCHEMA, avatar_html
+from utils import run_query, DB, SCHEMA, avatar_html
 
 st.title("AI人材検索")
 st.markdown(
@@ -45,30 +45,24 @@ with col3:
 
 # ── AI search logic ───────────────────────────────────────────────────────────
 def search_with_cortex(query: str, limit: int = 20) -> list:
-    """Use Cortex Search Service to find candidate employees."""
-    session = get_session()
+    """Use Cortex Search Service via SQL SEARCH_PREVIEW."""
+    safe_q = query.replace("\\", "\\\\").replace("'", "\\'")
     try:
-        from snowflake.core import Root
-        root = Root(session)
-        svc = (
-            root.databases[DB]
-                .schemas[SCHEMA]
-                .cortex_search_services["EMPLOYEE_SEARCH_SERVICE"]
-        )
-        resp = svc.search(
-            query=query,
-            columns=[
-                "EMPLOYEE_ID", "EMPLOYEE_NAME", "DEPARTMENT_NAME",
-                "POSITION_NAME", "JOB_GRADE", "SKILLS_TEXT",
-                "PROFILE_SUMMARY", "PERFORMANCE_SCORE", "ENGAGEMENT_SCORE",
-                "AGE", "TENURE_YEARS",
-            ],
-            limit=limit,
-        )
-        return resp.results
+        result = run_query(f"""
+            SELECT PARSE_JSON(
+              SNOWFLAKE.CORTEX.SEARCH_PREVIEW(
+                '{DB}.{SCHEMA}.EMPLOYEE_SEARCH_SERVICE',
+                '{{"query": "{safe_q}", "columns": ["EMPLOYEE_ID","EMPLOYEE_NAME","DEPARTMENT_NAME","POSITION_NAME","JOB_GRADE","SKILLS_TEXT","PROFILE_SUMMARY","PERFORMANCE_SCORE","ENGAGEMENT_SCORE","AGE","TENURE_YEARS"], "limit": {limit}}}'
+              )
+            ) AS RESULT
+        """)
+        if result.empty:
+            return []
+        parsed = json.loads(result["RESULT"].iloc[0])
+        return parsed.get("results", [])
     except Exception:
-        # Fallback: keyword search in profile_summary
-        safe_q = query[:100].replace("'", "''")
+        # Fallback: keyword search
+        safe_q2 = query[:100].replace("'", "''")
         fallback = run_query(f"""
             SELECT
                 e.EMPLOYEE_ID, e.EMPLOYEE_NAME, d.DEPARTMENT_NAME,
@@ -80,7 +74,7 @@ def search_with_cortex(query: str, limit: int = 20) -> list:
             JOIN {DB}.{SCHEMA}.POSITIONS p ON e.POSITION_ID = p.POSITION_ID
             LEFT JOIN {DB}.{SCHEMA}.V_EMPLOYEE_FULL v ON e.EMPLOYEE_ID = v.EMPLOYEE_ID
             WHERE e.IS_ACTIVE = TRUE
-              AND (e.PROFILE_SUMMARY ILIKE '%{safe_q[:30]}%' OR v.SKILLS_TEXT ILIKE '%{safe_q[:30]}%')
+              AND (e.PROFILE_SUMMARY ILIKE '%{safe_q2[:30]}%' OR v.SKILLS_TEXT ILIKE '%{safe_q2[:30]}%')
             ORDER BY e.PERFORMANCE_SCORE DESC
             LIMIT {limit}
         """)

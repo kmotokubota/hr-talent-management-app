@@ -27,25 +27,38 @@ with tab1:
     """)
 
     if not hc_df.empty:
+        # For L1 departments (divisions), sum up child department headcounts
+        l2 = hc_df[hc_df["DEPT_LEVEL"] == 2]
+        child_sum = l2.groupby("PARENT_ID")["HEADCOUNT"].sum().reset_index()
+        child_sum.columns = ["DEPARTMENT_ID", "CHILD_HC"]
+        hc_df = hc_df.merge(child_sum, on="DEPARTMENT_ID", how="left")
+        hc_df["CHILD_HC"] = hc_df["CHILD_HC"].fillna(0).astype(int)
+        # L1 total = own + children; L2 keeps own value
+        hc_df["TOTAL_HC"] = hc_df.apply(
+            lambda r: r["HEADCOUNT"] + r["CHILD_HC"] if r["DEPT_LEVEL"] == 1 else r["HEADCOUNT"],
+            axis=1,
+        )
+
         # Add a root node
         root_row = pd.DataFrame([{
             "DEPARTMENT_ID": "ROOT",
             "DEPARTMENT_NAME": "Demo Financial Corp",
             "PARENT_ID": "",
             "DEPT_LEVEL": 0,
-            "HEADCOUNT": int(hc_df["HEADCOUNT"].sum()),
+            "TOTAL_HC": int(hc_df.loc[hc_df["DEPT_LEVEL"] == 1, "TOTAL_HC"].sum()),
         }])
         plot_df = pd.concat([root_row, hc_df], ignore_index=True)
         plot_df["PARENT_ID"] = plot_df["PARENT_ID"].fillna("ROOT")
         plot_df.loc[plot_df["DEPT_LEVEL"] == 1, "PARENT_ID"] = "ROOT"
+        plot_df["TOTAL_HC"] = plot_df["TOTAL_HC"].fillna(0).astype(int)
 
         fig = go.Figure(go.Treemap(
             ids=plot_df["DEPARTMENT_ID"],
             labels=plot_df.apply(
-                lambda r: f'{r["DEPARTMENT_NAME"]}<br>{r["HEADCOUNT"]}名', axis=1
+                lambda r: f'{r["DEPARTMENT_NAME"]}<br>{int(r["TOTAL_HC"])}名', axis=1
             ),
             parents=plot_df["PARENT_ID"],
-            values=plot_df["HEADCOUNT"],
+            values=plot_df["TOTAL_HC"],
             branchvalues="total",
             marker=dict(colorscale="Blues", showscale=False),
             textinfo="label",
@@ -60,18 +73,18 @@ with tab1:
     st.markdown('<div class="section-header">部門別人員サマリー</div>', unsafe_allow_html=True)
     summary_df = run_query(f"""
         SELECT
-            d.DEPARTMENT_NAME AS 部門名,
-            d.DEPT_LEVEL AS レベル,
-            COUNT(e.EMPLOYEE_ID) AS 人員数,
-            SUM(CASE WHEN e.GENDER='男性' THEN 1 ELSE 0 END) AS 男性,
-            SUM(CASE WHEN e.GENDER='女性' THEN 1 ELSE 0 END) AS 女性,
-            ROUND(AVG(e.PERFORMANCE_SCORE),2) AS 平均評価,
-            ROUND(AVG(e.ENGAGEMENT_SCORE),1) AS 平均ENG
+            d.DEPARTMENT_NAME AS "部門名",
+            d.DEPT_LEVEL AS "レベル",
+            COUNT(e.EMPLOYEE_ID) AS "人員数",
+            SUM(CASE WHEN e.GENDER='男性' THEN 1 ELSE 0 END) AS "男性",
+            SUM(CASE WHEN e.GENDER='女性' THEN 1 ELSE 0 END) AS "女性",
+            ROUND(AVG(e.PERFORMANCE_SCORE),2) AS "平均評価",
+            ROUND(AVG(e.ENGAGEMENT_SCORE),1) AS "平均ENG"
         FROM {DB}.{SCHEMA}.DEPARTMENTS d
         LEFT JOIN {DB}.{SCHEMA}.EMPLOYEES e
             ON d.DEPARTMENT_ID = e.DEPARTMENT_ID AND e.IS_ACTIVE = TRUE
         GROUP BY d.DEPARTMENT_ID, d.DEPARTMENT_NAME, d.DEPT_LEVEL
-        ORDER BY d.DEPT_LEVEL, 人員数 DESC
+        ORDER BY d.DEPT_LEVEL, "人員数" DESC
     """)
     st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
@@ -107,14 +120,14 @@ with tab2:
 
     apt_df = run_query(f"""
         SELECT
-            a.APPOINTMENT_DATE AS 発令日,
-            e.EMPLOYEE_NAME    AS 氏名,
-            a.APPOINTMENT_TYPE AS 発令種別,
-            d1.DEPARTMENT_NAME AS 旧所属,
-            d2.DEPARTMENT_NAME AS 新所属,
-            p1.POSITION_NAME   AS 旧職位,
-            p2.POSITION_NAME   AS 新職位,
-            a.REASON           AS 理由
+            a.APPOINTMENT_DATE AS "発令日",
+            e.EMPLOYEE_NAME    AS "氏名",
+            a.APPOINTMENT_TYPE AS "発令種別",
+            d1.DEPARTMENT_NAME AS "旧所属",
+            d2.DEPARTMENT_NAME AS "新所属",
+            p1.POSITION_NAME   AS "旧職位",
+            p2.POSITION_NAME   AS "新職位",
+            a.REASON           AS "理由"
         FROM {DB}.{SCHEMA}.APPOINTMENTS a
         JOIN {DB}.{SCHEMA}.EMPLOYEES e    ON a.EMPLOYEE_ID = e.EMPLOYEE_ID
         LEFT JOIN {DB}.{SCHEMA}.DEPARTMENTS d1 ON a.FROM_DEPARTMENT_ID = d1.DEPARTMENT_ID
