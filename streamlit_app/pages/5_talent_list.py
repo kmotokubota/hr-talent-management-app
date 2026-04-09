@@ -209,10 +209,10 @@ with tab2:
                 INSERT INTO {DB}.{SCHEMA}.TALENT_LISTS
                 (LIST_ID, LIST_NAME, DESCRIPTION, FILTER_CONFIG,
                  CREATED_BY, IS_AUTO_REFRESH)
-                VALUES ('{list_id}', '{list_name.replace("'","''")}',
-                        '{list_desc.replace("'","''")}',
-                        PARSE_JSON('{cfg_json}'),
-                        'user', {is_auto})
+                SELECT '{list_id}', '{list_name.replace("'","''")}',
+                       '{list_desc.replace("'","''")}',
+                       PARSE_JSON('{cfg_json}'),
+                       'user', {is_auto}
             """)
 
             # Add members
